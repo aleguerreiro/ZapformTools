@@ -1,4 +1,4 @@
-    // ==============================
+// ==============================
     // OBTER DATA E HORA ATUAIS
     // ==============================
 
@@ -342,37 +342,50 @@ function preencherStartCmdText() {
     // ==============================
 
 // Função para preencher as opções de uma questão
-async function preencherFormOption(indexQuestao, indexOpcao, questao) {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            console.log(`🔍 Buscando campos da opção ${indexOpcao + 1} na questão ${indexQuestao + 1}...`);
+async function preencherTodasFormOptions() {
+    console.log("▶️ Preenchendo opções extras...");
 
-            let opcaoKey = document.querySelector(`input[name="questions-${indexQuestao}-options-${indexOpcao}-key"]`);
-            let opcaoValue = document.querySelector(`input[name="questions-${indexQuestao}-options-${indexOpcao}-value"]`);
+    let todasQuestoes = document.querySelectorAll('input[name^="questions-"][name$="-name_text"]');
 
-            if (opcaoKey && opcaoValue) {
-                const numeroQuestao = (indexQuestao + 1).toString().padStart(2, '0');
-                if (indexOpcao === 0) {
-                    opcaoKey.value = `_RUN_TASK_AFTER`;
-                    opcaoValue.value = `condo.tasks.update_order`;
-                } else if (indexOpcao === 1) {
-                    opcaoKey.value = `_RUN_TASK_AFTER#order_id`;
-                    opcaoValue.value = `{order.id}`;
-                } else if (indexOpcao === 2) {
-                    opcaoKey.value = `_RUN_TASK_AFTER#${numeroQuestao}. ${questao.name_text}`;
-                    opcaoValue.value = `{${questao.name_text}.text}`;
-                }
+    for (let i = 0; i < todasQuestoes.length; i++) {
+        let todasOpcoes = document.querySelectorAll(`input[name^="questions-${i}-options-"][name$="-key"]`);
+        let todasOpcoesValue = document.querySelectorAll(`input[name^="questions-${i}-options-"][name$="-value"]`);
 
-                opcaoKey.dispatchEvent(new Event('input', { bubbles: true }));
-                opcaoValue.dispatchEvent(new Event('input', { bubbles: true }));
+        console.log(`📌 Encontradas ${todasOpcoes.length} opções na questão ${i + 1}.`);
 
-                console.log(`✅ Opção ${indexOpcao + 1} na questão ${indexQuestao + 1} preenchida com sucesso!`);
-            } else if (indexQuestao < questoes.length - 1) {
-                console.error(`❌ Campos da opção ${indexOpcao + 1} na questão ${indexQuestao + 1} não encontrados!`);
+        let preenchidos = 0; // Contador de quantos espaços já foram preenchidos
+
+        for (let j = 0; j < todasOpcoes.length; j++) {
+            // Se o campo já tem um valor, significa que é uma lista de opções -> Pular preenchimento
+            if (todasOpcoes[j].value.trim() !== "") {
+                console.log(`⚠️ Espaço ${j + 1} já preenchido com '${todasOpcoes[j].value}', pulando...`);
+                continue;
             }
-            resolve();
-        }, 1000);
-    });
+
+            if (preenchidos === 0) {
+                todasOpcoes[j].value = `_RUN_TASK_AFTER`;
+                todasOpcoesValue[j].value = `condo.tasks.update_order`;
+            } else if (preenchidos === 1) {
+                todasOpcoes[j].value = `_RUN_TASK_AFTER#order_id`;
+                todasOpcoesValue[j].value = `{order.id}`;
+            } else if (preenchidos === 2) {
+                const numeroQuestao = (i + 1).toString().padStart(2, '0');
+                todasOpcoes[j].value = `_RUN_TASK_AFTER#${numeroQuestao}. ${todasQuestoes[i].value}`;
+                todasOpcoesValue[j].value = `{${todasQuestoes[i].value}${getExtensionByMsgType(questoes[i].msg_type)}}`;
+            }
+
+            todasOpcoes[j].dispatchEvent(new Event('input', { bubbles: true }));
+            todasOpcoesValue[j].dispatchEvent(new Event('input', { bubbles: true }));
+
+            console.log(`✅ Opção extra preenchida: ${todasOpcoes[j].value} -> ${todasOpcoesValue[j].value}`);
+            preenchidos++;
+
+            // Se já preenchemos todas as opções extras, saímos do loop
+            if (preenchidos >= 3) break;
+        }
+    }
+
+    console.log("✅ Todas as opções extras foram preenchidas!");
 }
 
 
@@ -406,7 +419,7 @@ async function preencherTodasFormOptions() {
             } else if (preenchidos === 2) {
                 const numeroQuestao = (i + 1).toString().padStart(2, '0');
                 todasOpcoes[j].value = `_RUN_TASK_AFTER#${numeroQuestao}. ${todasQuestoes[i].value}`;
-                todasOpcoesValue[j].value = `{${todasQuestoes[i].value}.text}`;
+                todasOpcoesValue[j].value = `{${todasQuestoes[i].value}${getExtensionByMsgType(questoes[i].msg_type)}}`;
             }
 
             todasOpcoes[j].dispatchEvent(new Event('input', { bubbles: true }));
@@ -480,5 +493,37 @@ async function executarSequencia() {
 
 // Inicia a sequência
 executarSequencia();
+
+// Função auxiliar para obter a extensão correta com base no tipo de mensagem
+function getExtensionByMsgType(msgType) {
+    switch (msgType) {
+        case 'Texto':
+            return '.text';
+        case 'Numérico':
+            return '.number';
+        case 'Data':
+            return '.date';
+        case 'CEP':
+            return '.text';
+        case 'Sim/Não':
+        case 'Lista de opções':
+            return '.value';
+        case 'Localização':
+            return '|tojson';
+        case 'Imagem':
+        case 'Vídeo':
+        case 'Áudio':
+        case 'Documento':
+        case 'Assinatura':
+            return '.url';
+        case 'Código de Barras / QR':
+        case 'Placa de carro':
+            return '.text';
+        case 'Sem resposta (pular para a próxima pergunta)':
+            return '.text';
+        default:
+            return '.text';
+    }
+}
 
 
